@@ -1,4 +1,4 @@
-// Copyright © 2023 Weald Technology Limited.
+// Copyright © 2024 Weald Technology Limited.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -16,8 +16,8 @@ package handlers
 import (
 	"context"
 
-	"github.com/attestantio/go-execution-client/spec"
-	"github.com/attestantio/go-execution-client/types"
+	"github.com/attestantio/go-starknet-client/spec"
+	"github.com/attestantio/go-starknet-client/types"
 )
 
 // TxTrigger is a trigger for a transaction.
@@ -25,7 +25,7 @@ type TxTrigger struct {
 	Name          string
 	From          *types.Address
 	To            *types.Address
-	EarliestBlock uint32
+	EarliestBlock types.Number
 	Handler       TxHandler
 }
 
@@ -34,5 +34,8 @@ type TxHandlerFunc func(ctx context.Context, tx *spec.Transaction, trigger *TxTr
 
 // TxHandler defines the methods that need to be implemented to handle transactions.
 type TxHandler interface {
-	HandleTx(ctx context.Context, tx *spec.Transaction, trigger *TxTrigger)
+	// HandleTx handles a transaction provided by the listener.
+	// If this call returns an error then the listener will not send further transactions in the current poll,
+	// and on the next poll it will start again with the this transaction.
+	HandleTx(ctx context.Context, tx *spec.Transaction, trigger *TxTrigger) error
 }

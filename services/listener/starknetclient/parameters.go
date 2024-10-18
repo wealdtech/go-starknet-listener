@@ -1,4 +1,4 @@
-// Copyright © 2023 Weald Technology Limited.
+// Copyright © 2024 Weald Technology Limited.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ethclient is a listener that listens to an Ethereum client.
-package ethclient
+// Package starknetclient is a listener that listens to a Starknet client.
+package starknetclient
 
 import (
 	"errors"
@@ -21,13 +21,14 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/wealdtech/go-eth-listener/handlers"
-	"github.com/wealdtech/go-eth-listener/services/metrics"
-	nullmetrics "github.com/wealdtech/go-eth-listener/services/metrics/null"
+	"github.com/wealdtech/go-starknet-listener/handlers"
+	"github.com/wealdtech/go-starknet-listener/services/metrics"
+	nullmetrics "github.com/wealdtech/go-starknet-listener/services/metrics/null"
 )
 
 type parameters struct {
 	logLevel       zerolog.Level
+	clientLogLevel zerolog.Level
 	monitor        metrics.Service
 	metadataDBPath string
 	address        string
@@ -52,10 +53,17 @@ func (f parameterFunc) apply(p *parameters) {
 	f(p)
 }
 
-// WithLogLevel sets the log level.
+// WithLogLevel sets the log level for the listener.
 func WithLogLevel(logLevel zerolog.Level) Parameter {
 	return parameterFunc(func(p *parameters) {
 		p.logLevel = logLevel
+	})
+}
+
+// WithClientLogLevel sets the log level for the clients used by the listener.
+func WithClientLogLevel(logLevel zerolog.Level) Parameter {
+	return parameterFunc(func(p *parameters) {
+		p.clientLogLevel = logLevel
 	})
 }
 
@@ -142,9 +150,10 @@ func WithInterval(interval time.Duration) Parameter {
 // parseAndCheckParameters parses and checks parameters to ensure that mandatory parameters are present and correct.
 func parseAndCheckParameters(params ...Parameter) (*parameters, error) {
 	parameters := parameters{
-		logLevel:      zerolog.GlobalLevel(),
-		monitor:       nullmetrics.New(),
-		earliestBlock: -1,
+		logLevel:       zerolog.GlobalLevel(),
+		clientLogLevel: zerolog.GlobalLevel(),
+		monitor:        nullmetrics.New(),
+		earliestBlock:  -1,
 	}
 	for _, p := range params {
 		if p != nil {

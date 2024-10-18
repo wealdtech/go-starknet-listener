@@ -1,4 +1,4 @@
-// Copyright © 2023 Weald Technology Limited.
+// Copyright © 2024 Weald Technology Limited.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -16,13 +16,14 @@ package handlers
 import (
 	"context"
 
-	"github.com/attestantio/go-execution-client/spec"
+	"github.com/attestantio/go-starknet-client/spec"
+	"github.com/attestantio/go-starknet-client/types"
 )
 
 // BlockTrigger is a trigger for a block.
 type BlockTrigger struct {
 	Name          string
-	EarliestBlock uint32
+	EarliestBlock types.Number
 	Handler       BlockHandler
 }
 

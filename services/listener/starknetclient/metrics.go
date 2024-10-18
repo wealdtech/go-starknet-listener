@@ -1,4 +1,4 @@
-// Copyright © 2023 Weald Technology Limited.
+// Copyright © 2024 Weald Technology Limited.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,14 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ethclient
+package starknetclient
 
 import (
 	"context"
+	"errors"
 
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/wealdtech/go-eth-listener/services/metrics"
+	"github.com/wealdtech/go-starknet-listener/services/metrics"
 )
 
 var metricsNamespace = "eth_listener"
@@ -44,6 +44,8 @@ func registerMetrics(_ context.Context, monitor metrics.Service) error {
 	return nil
 }
 
+// We should have separate metrics for blocks, txs and events.
+// Also latest should be per-trigger.
 func registerPrometheusMetrics() error {
 	latestBlockMetric = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: metricsNamespace,
@@ -52,7 +54,7 @@ func registerPrometheusMetrics() error {
 		Help:      "The latest block processed",
 	})
 	if err := prometheus.Register(latestBlockMetric); err != nil {
-		return errors.Wrap(err, "failed to register latest block metric")
+		return errors.Join(errors.New("failed to register latest block metric"), err)
 	}
 
 	failuresMetric = prometheus.NewCounter(prometheus.CounterOpts{
@@ -62,7 +64,7 @@ func registerPrometheusMetrics() error {
 		Help:      "The number of failures.",
 	})
 	if err := prometheus.Register(failuresMetric); err != nil {
-		return errors.Wrap(err, "failed to register total failures")
+		return errors.Join(errors.New("failed to register total failures"), err)
 	}
 
 	return nil

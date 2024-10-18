@@ -16,8 +16,8 @@ package handlers
 import (
 	"context"
 
-	"github.com/attestantio/go-execution-client/spec"
-	"github.com/attestantio/go-execution-client/types"
+	"github.com/attestantio/go-starknet-client/spec"
+	"github.com/attestantio/go-starknet-client/types"
 )
 
 // EventTrigger is a trigger for an event.
@@ -27,7 +27,7 @@ type EventTrigger struct {
 	Source *types.Address
 	// SourceResolver is a dynamic resolver use for event addresses.
 	SourceResolver SourceResolver
-	Topics         []types.Hash
+	Topics         []types.FieldElement
 	EarliestBlock  uint32
 	Handler        EventHandler
 }
@@ -39,9 +39,9 @@ type SourceResolver interface {
 }
 
 // EventHandlerFunc defines the handler function.
-type EventHandlerFunc func(ctx context.Context, event *spec.BerlinTransactionEvent, trigger *EventTrigger)
+type EventHandlerFunc func(ctx context.Context, event *spec.TransactionEvent, trigger *EventTrigger)
 
 // EventHandler defines the methods that need to be implemented to handle events.
 type EventHandler interface {
-	HandleEvent(ctx context.Context, event *spec.BerlinTransactionEvent, trigger *EventTrigger)
+	HandleEvent(ctx context.Context, event *spec.TransactionEvent, trigger *EventTrigger) error
 }

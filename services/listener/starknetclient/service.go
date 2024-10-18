@@ -1,4 +1,4 @@
-// Copyright © 2023 Weald Technology Limited.
+// Copyright © 2024 Weald Technology Limited.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,30 +11,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ethclient
+package starknetclient
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	execclient "github.com/attestantio/go-execution-client"
-	jsonrpcexecclient "github.com/attestantio/go-execution-client/jsonrpc"
+	client "github.com/attestantio/go-starknet-client"
+	jsonrpcclient "github.com/attestantio/go-starknet-client/jsonrpc"
 	"github.com/cockroachdb/pebble"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	zerologger "github.com/rs/zerolog/log"
-	"github.com/wealdtech/go-eth-listener/handlers"
-	"github.com/wealdtech/go-eth-listener/util"
+	"github.com/wealdtech/go-starknet-listener/handlers"
 )
 
 // Service is a listener that listens to an Ethereum client.
 type Service struct {
 	log                 zerolog.Logger
-	chainHeightProvider execclient.ChainHeightProvider
-	blocksProvider      execclient.BlocksProvider
-	eventsProvider      execclient.EventsProvider
+	blockNumberProvider client.BlockNumberProvider
+	blocksProvider      client.BlockProvider
+	eventsProvider      client.EventsProvider
 	blockTriggers       []*handlers.BlockTrigger
 	txTriggers          []*handlers.TxTrigger
 	eventTriggers       []*handlers.EventTrigger
@@ -51,27 +50,27 @@ type Service struct {
 func New(ctx context.Context, params ...Parameter) (*Service, error) {
 	parameters, err := parseAndCheckParameters(params...)
 	if err != nil {
-		return nil, errors.Wrap(err, "problem with parameters")
+		return nil, err
 	}
 
 	// Set logging.
-	log := zerologger.With().Str("service", "listener").Str("impl", "ethclient").Logger()
+	log := zerologger.With().Str("service", "listener").Str("impl", "starknetclient").Logger()
 	if parameters.logLevel != log.GetLevel() {
 		log = log.Level(parameters.logLevel)
 	}
 
 	if err := registerMetrics(ctx, parameters.monitor); err != nil {
-		return nil, errors.Wrap(err, "failed to register metrics")
+		return nil, err
 	}
 
-	chainHeightProvider, blocksProvider, eventsProvider, err := setupProviders(ctx, parameters)
+	blockNumberPovider, blocksProvider, eventsProvider, err := setupProviders(ctx, parameters)
 	if err != nil {
 		return nil, err
 	}
 
 	metadataDB, err := pebble.Open(parameters.metadataDBPath, &pebble.Options{})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to start metadata database")
+		return nil, errors.Join(errors.New("failed to start metadata database"), err)
 	}
 
 	s := &Service{
@@ -85,7 +84,7 @@ func New(ctx context.Context, params ...Parameter) (*Service, error) {
 		blockDelay:          parameters.blockDelay,
 		blockSpecifier:      parameters.blockSpecifier,
 		earliestBlock:       parameters.earliestBlock,
-		chainHeightProvider: chainHeightProvider,
+		blockNumberProvider: blockNumberPovider,
 		interval:            parameters.interval,
 	}
 
@@ -113,31 +112,19 @@ func New(ctx context.Context, params ...Parameter) (*Service, error) {
 func setupProviders(ctx context.Context,
 	parameters *parameters,
 ) (
-	execclient.ChainHeightProvider,
-	execclient.BlocksProvider,
-	execclient.EventsProvider,
+	client.BlockNumberProvider,
+	client.BlockProvider,
+	client.EventsProvider,
 	error,
 ) {
-	client, err := jsonrpcexecclient.New(ctx,
-		jsonrpcexecclient.WithLogLevel(util.LogLevel("execclient")),
-		jsonrpcexecclient.WithAddress(parameters.address),
-		jsonrpcexecclient.WithTimeout(parameters.timeout),
+	jsonClient, err := jsonrpcclient.New(ctx,
+		jsonrpcclient.WithLogLevel(parameters.clientLogLevel),
+		jsonrpcclient.WithAddress(parameters.address),
+		jsonrpcclient.WithTimeout(parameters.timeout),
 	)
 	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "failed to connect to Ethereum client")
-	}
-	chainHeightProvider, isProvider := client.(execclient.ChainHeightProvider)
-	if !isProvider {
-		return nil, nil, nil, errors.New("client does not provide chain height")
-	}
-	blocksProvider, isProvider := client.(execclient.BlocksProvider)
-	if !isProvider {
-		return nil, nil, nil, errors.New("client does not provide blocks")
-	}
-	eventsProvider, isProvider := client.(execclient.EventsProvider)
-	if !isProvider {
-		return nil, nil, nil, errors.New("client does not provide events")
+		return nil, nil, nil, errors.Join(errors.New("failed to connect to Starknet client"), err)
 	}
 
-	return chainHeightProvider, blocksProvider, eventsProvider, nil
+	return jsonClient, jsonClient, jsonClient, nil
 }
